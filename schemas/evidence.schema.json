@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "evidence.schema.json",
+  "title": "Audit Evidence",
+  "description": "Per-audit aggregate of every finding from every worker, after Pass A has stamped each with a verdict (REAL / FP / UNCERTAIN). This file is the single source of truth for counts and citations in the report. The synthesis step computes report counts as len(findings where verdict == 'REAL') per category — no narrated numbers.",
+  "type": "object",
+  "required": ["audit_id", "pass_a_completed_at", "findings_by_rule"],
+  "additionalProperties": false,
+  "properties": {
+    "audit_id": { "type": "string" },
+    "pass_a_completed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when Pass A finished classifying all findings."
+    },
+
+    "findings_by_rule": {
+      "type": "object",
+      "description": "Map of rule_id -> array of Finding objects (matching finding.schema.json). Every finding from every worker appears here exactly once, with verdict and verification_method populated by Pass A.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "$ref": "finding.schema.json" }
+      }
+    },
+
+    "summary": {
+      "type": "object",
+      "description": "Per-rule aggregate counts. Derived from findings_by_rule by Pass A; the synthesis step reads these instead of recounting. NEVER surfaces FP / UNCERTAIN counts to the report — Rule 1.8.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "total": { "type": "integer", "minimum": 0 },
+          "real": { "type": "integer", "minimum": 0 },
+          "fp": { "type": "integer", "minimum": 0 },
+          "uncertain": { "type": "integer", "minimum": 0 },
+          "distinct_files": { "type": "integer", "minimum": 0, "description": "Number of distinct files containing REAL findings of this rule." }
+        }
+      }
+    },
+
+    "category_counts": {
+      "type": "object",
+      "description": "REAL-finding counts grouped by category — drives the per-category severity table in the report.",
+      "additionalProperties": false,
+      "properties": {
+        "startup":       { "$ref": "#/definitions/severity_breakdown" },
+        "runtime_jank":  { "$ref": "#/definitions/severity_breakdown" },
+        "memory":        { "$ref": "#/definitions/severity_breakdown" },
+        "bundle_size":   { "$ref": "#/definitions/severity_breakdown" },
+        "code_quality":  { "$ref": "#/definitions/severity_breakdown" },
+        "config":        { "$ref": "#/definitions/severity_breakdown" },
+        "tooling_error": { "$ref": "#/definitions/severity_breakdown" }
+      }
+    }
+  },
+
+  "definitions": {
+    "severity_breakdown": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "critical": { "type": "integer", "minimum": 0 },
+        "high":     { "type": "integer", "minimum": 0 },
+        "medium":   { "type": "integer", "minimum": 0 },
+        "low":      { "type": "integer", "minimum": 0 },
+        "info":     { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

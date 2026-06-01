@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "AuditTestFixture",
+    "slug": "audit-test-fixture",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "audittestfixture",
+
+    "_comment_jsEngine": "Intentionally jsc — should trip static.hermes_disabled (critical).",
+    "jsEngine": "jsc",
+
+    "_comment_newArch": "Intentionally omitted on SDK 51 — should trip static.new_architecture_disabled.",
+
+    "android": {
+      "package": "com.audit.testfixture",
+      "adaptiveIcon": { "backgroundColor": "#ffffff" }
+    },
+    "ios": {
+      "bundleIdentifier": "com.audit.testfixture",
+      "supportsTablet": true
+    },
+    "plugins": ["expo-router"],
+    "experiments": { "typedRoutes": true }
+  }
+}

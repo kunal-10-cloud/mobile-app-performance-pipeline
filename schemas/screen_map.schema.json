@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://emergent.local/schemas/mobile-perf-audit/screen_map.schema.json",
+  "title": "Screen map",
+  "description": "Structured description of the mobile app's navigation surface, produced by extract_screen_map.py. Consumed by generate_draft_flow.py to produce a baseline Maestro flow without LLM involvement.",
+  "type": "object",
+  "required": ["navigation", "scrollable_screens"],
+  "additionalProperties": false,
+  "properties": {
+    "bundle_id_android": {
+      "type": ["string", "null"],
+      "description": "Android applicationId from app.json / app.config (`android.package`). Null if the app does not target Android."
+    },
+    "bundle_id_ios": {
+      "type": ["string", "null"],
+      "description": "iOS bundle identifier (`ios.bundleIdentifier`). Null if the app does not target iOS."
+    },
+    "entry_screen": {
+      "type": ["string", "null"],
+      "description": "Filesystem path (relative to workspace) of the first screen the user lands on after splash. For Expo Router, typically `app/(tabs)/index.tsx` or `app/index.tsx`."
+    },
+    "navigation": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": ["expo-router-tabs", "expo-router-stack", "expo-router-drawer", "react-navigation", "custom", "unknown"]
+        },
+        "tabs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["route", "file"],
+            "additionalProperties": false,
+            "properties": {
+              "route":       { "type": "string", "description": "URL-style route name (e.g. `feed`, `profile`)." },
+              "file":        { "type": "string", "description": "Workspace-relative source file." },
+              "label_guess": { "type": ["string", "null"], "description": "Best guess at the tab's visible label, used to drive maestro tapOn." },
+              "icon_name":   { "type": ["string", "null"], "description": "Inferred icon name when one was detected, used as a fallback selector." }
+            }
+          }
+        },
+        "stack_screens": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["route", "file"],
+            "additionalProperties": false,
+            "properties": {
+              "route":   { "type": "string" },
+              "file":    { "type": "string" },
+              "dynamic": { "type": "boolean", "description": "True for `[id]`-style dynamic Expo Router segments." }
+            }
+          }
+        },
+        "drawer_items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["route", "file"],
+            "additionalProperties": false,
+            "properties": {
+              "route":       { "type": "string" },
+              "file":        { "type": "string" },
+              "label_guess": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "detected":             { "type": "boolean" },
+        "login_screen":         { "type": ["string", "null"], "description": "Workspace-relative file path of the screen judged to be the login screen." },
+        "indicators":           { "type": "array", "items": { "type": "string" }, "description": "Plain-English hints that drove the detection (e.g. \"TextInput with placeholder 'Email'\")." },
+        "email_field_label":    { "type": ["string", "null"], "description": "Most likely on-screen label / placeholder for the email/username input." },
+        "password_field_label": { "type": ["string", "null"], "description": "Most likely on-screen label / placeholder for the password input." },
+        "submit_label":         { "type": ["string", "null"], "description": "Most likely on-screen label for the submit button (e.g. \"Sign in\")." }
+      }
+    },
+    "scrollable_screens": {
+      "type": "array",
+      "items": { "type": "string", "description": "Workspace-relative file path of a screen judged to be scrollable (contains ScrollView/FlatList/FlashList/SectionList)." }
+    },
+    "has_demo_mode_flag": {
+      "type": "boolean",
+      "description": "True if the workspace contains a documented demo / fixture mode the audit can opt into (`__DEV__` toggle, env var like EXPO_PUBLIC_DEMO_MODE, etc.)."
+    },
+    "extraction_warnings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Non-fatal heuristic failures during extraction. Surfaced internally; never appears in the report."
+    }
+  }
+}

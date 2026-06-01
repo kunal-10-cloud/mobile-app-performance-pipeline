@@ -1,0 +1,42 @@
+{
+  "_comment": "Profile for the Android emulator used by Stage 4d. Tuned to a 'real cheap phone' shape so perf regressions surface — a $1000 dev machine with 8 GB of emulator RAM hides issues users actually hit. The audit prefers this profile over whatever the host's default AVD is.",
+
+  "preferred_avd_name": "audit_pixel_5_2gb_api_33",
+  "fallback_avd_names": [
+    "audit_pixel_4_2gb_api_31",
+    "audit_low_end_api_30",
+    "Pixel_5_API_33"
+  ],
+
+  "device_profile": "pixel_5",
+  "api_level": 33,
+  "ram_mb": 2048,
+  "vm_heap_mb": 256,
+  "data_partition_mb": 4096,
+  "cores": 2,
+
+  "boot_args": [
+    "-no-snapshot-save",
+    "-no-boot-anim",
+    "-no-audio",
+    "-gpu", "swiftshader_indirect",
+    "-memory", "2048",
+    "-cores", "2"
+  ],
+
+  "wait_for_boot_seconds": 180,
+
+  "post_boot_settings": {
+    "_comment": "Settings applied via `adb shell settings put` after boot. Turn off animations so render timing isn't dominated by system animation curves.",
+    "global.window_animation_scale": 0,
+    "global.transition_animation_scale": 0,
+    "global.animator_duration_scale": 0
+  },
+
+  "measurement_defaults": {
+    "_comment": "Defaults consumed by run_android_perf.sh when not overridden.",
+    "duration_ms": 60000,
+    "iteration_count": 3,
+    "warm_up_ms": 3000
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://emergent.local/schemas/mobile-perf-audit/flow_intent.schema.json",
+  "title": "Maestro flow intent",
+  "description": "Structured representation of the user journey the audit should simulate. The LLM fills this contract (constrained by schema), and `scripts/render_flow_yaml.py` deterministically renders the corresponding Maestro YAML. The LLM never emits YAML directly — this avoids invented element labels and broken indentation.",
+  "type": "object",
+  "required": ["app_id", "platform_overrides", "steps"],
+  "additionalProperties": false,
+  "properties": {
+    "app_id": {
+      "type": "string",
+      "description": "appId Maestro should target. For Android, the applicationId; for iOS, the bundle identifier. Same flow file can be reused across platforms via maestro's `--app-id` override."
+    },
+    "platform_overrides": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "android_app_id": { "type": ["string", "null"] },
+        "ios_app_id":     { "type": ["string", "null"] }
+      }
+    },
+    "login": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required"],
+      "properties": {
+        "required":             { "type": "boolean" },
+        "email_field_label":    { "type": ["string", "null"], "description": "Visible label / placeholder Maestro will tap to focus the email field." },
+        "password_field_label": { "type": ["string", "null"] },
+        "submit_label":         { "type": ["string", "null"] },
+        "email_value":          { "type": "string", "default": "test@example.com" },
+        "password_value":       { "type": "string", "default": "Test1234!" }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "description": "Ordered list of high-level actions. Each action is one of a small fixed set; the renderer expands each into 1..N Maestro steps. Every step is rendered with `optional: true` unless its `required` field is set; this prevents a single mis-guessed label from aborting the whole flow.",
+      "items": {
+        "type": "object",
+        "required": ["kind"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "enum": [
+              "launch",
+              "wait_for_visible",
+              "tap_label",
+              "tap_index",
+              "input_text",
+              "scroll",
+              "swipe",
+              "back",
+              "wait_for_animation",
+              "take_screenshot",
+              "tap_list_item",
+              "type_search",
+              "open_detail_then_back"
+            ]
+          },
+          "required":    { "type": "boolean", "default": false },
+          "label":       { "type": ["string", "null"], "description": "Visible text / accessibility label for tap_label." },
+          "index":       { "type": ["integer", "null"], "minimum": 0, "description": "Index for tap_index inside a list view." },
+          "text":        { "type": ["string", "null"], "description": "Text payload for input_text / type_search." },
+          "direction":   { "enum": ["UP", "DOWN", "LEFT", "RIGHT"], "description": "Direction for swipe / scroll-with-direction." },
+          "duration_ms": { "type": ["integer", "null"], "minimum": 0 },
+          "screen_label": { "type": ["string", "null"], "description": "Friendly name attached to this step (surfaces in flashlight intervals)." },
+          "scroll_count": { "type": ["integer", "null"], "minimum": 1, "maximum": 10, "description": "Number of times to scroll for `scroll` actions." }
+        }
+      }
+    },
+    "post_login_assertions": {
+      "type": "array",
+      "description": "Optional set of labels Maestro should assert visible after login completes. Used as a hint to fail fast if login silently fails.",
+      "items": { "type": "string" }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source":     { "enum": ["draft", "llm_refined", "llm_repaired", "user_override"] },
+        "model_name": { "type": ["string", "null"], "description": "LLM that produced the refinement, if any." },
+        "generated_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

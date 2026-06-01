@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://emergent.local/schemas/mobile-perf-audit/perf_result.schema.json",
+  "title": "Device perf measurement",
+  "description": "Per-platform output of run_android_perf.sh / run_ios_perf.sh. Mirrors Flashlight's shape on Android; iOS fields are a subset (cold start + memory; frame data is gated on Xcrun availability).",
+  "type": "object",
+  "required": ["platform", "device_profile", "iterations"],
+  "additionalProperties": false,
+  "properties": {
+    "platform":         { "enum": ["android", "ios"] },
+    "device_profile":   { "type": "string", "description": "Free-form identifier for the emulator / simulator profile used (e.g. `pixel_5_api_33_2gb`, `iphone_se_3rd_gen`)." },
+    "bundle_id":        { "type": "string" },
+    "captured_at":      { "type": "string", "format": "date-time" },
+    "score": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Tool-reported overall score (Flashlight). Null when the tool did not emit one."
+    },
+    "startup_time_ms": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Cold-start to first-interactive frame, in milliseconds."
+    },
+    "iterations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "index": { "type": "integer", "minimum": 0 },
+          "fps": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "average":  { "type": "number" },
+              "min":      { "type": "number" },
+              "max":      { "type": "number" }
+            }
+          },
+          "cpu_per_thread": {
+            "type": "object",
+            "additionalProperties": { "type": "number", "description": "Mean CPU percentage for the named thread over the iteration." }
+          },
+          "memory_mb": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "average": { "type": "number" },
+              "peak":    { "type": "number" },
+              "growth":  { "type": "number", "description": "Memory delta from iteration start to iteration end (positive = leak suspect)." }
+            }
+          },
+          "blocking_intervals_ms": {
+            "type": "array",
+            "description": "Durations of main-thread blocking intervals > 50 ms (Android only). Each entry's units are milliseconds.",
+            "items": { "type": "number" }
+          }
+        }
+      }
+    },
+    "intervals": {
+      "type": "array",
+      "description": "Per-step measurements tied back to the Maestro flow step labels.",
+      "items": {
+        "type": "object",
+        "required": ["step_label", "start_ms", "end_ms"],
+        "additionalProperties": false,
+        "properties": {
+          "step_label": { "type": "string" },
+          "start_ms":   { "type": "integer", "minimum": 0 },
+          "end_ms":     { "type": "integer", "minimum": 0 },
+          "fps_avg":    { "type": ["number", "null"] },
+          "fps_min":    { "type": ["number", "null"] },
+          "cpu_avg":    { "type": ["number", "null"] },
+          "memory_peak_mb": { "type": ["number", "null"] }
+        }
+      }
+    },
+    "raw_artifact_path": {
+      "type": "string",
+      "description": "Workspace-relative path to the underlying tool output (Flashlight JSON, xcrun log). Kept for diagnostics; never read by the report renderer."
+    },
+    "tool_warnings": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Non-fatal warnings the measurement tool emitted (e.g. missing trace point, fallback profile used)."
+    }
+  }
+}

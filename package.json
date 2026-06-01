@@ -1,0 +1,49 @@
+{
+  "name": "mobile-perf-audit-tooling",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Node-side tooling for the mobile performance audit pipeline (ESLint perf rules, bundle analysis, dependency hygiene, codemod helpers). The pipeline itself is orchestrated from SKILL.md; this manifest only declares the JS-side binaries the worker scripts shell out to.",
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "scripts": {
+    "lint:perf": "eslint --config configs/eslint.perf.config.js",
+    "deps:circular": "madge --circular --extensions js,jsx,ts,tsx .",
+    "deps:unused": "depcheck --skip-missing=true",
+    "deps:dead-exports": "knip --no-exit-code",
+    "deps:outdated": "ncu --jsonAll",
+    "bundle:explore": "source-map-explorer"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "@typescript-eslint/parser": "^7.7.0",
+    "@typescript-eslint/eslint-plugin": "^7.7.0",
+    "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-native": "^4.1.0",
+    "eslint-plugin-react-perf": "^3.3.2",
+
+    "madge": "^7.0.0",
+    "depcheck": "^1.4.7",
+    "knip": "^5.10.0",
+    "npm-check-updates": "^16.14.20",
+
+    "source-map-explorer": "^2.5.3",
+
+    "ajv": "^8.13.0",
+    "ajv-formats": "^3.0.1"
+  },
+  "comments": {
+    "eslint": "Pinned to v8 — v9 flat-config requires plugin updates that several of the react-native / react-perf plugins have not yet shipped. Revisit when those plugins publish v9-compatible majors.",
+    "react-perf": "eslint-plugin-react-perf catches jsx-no-new-object/array/function-as-prop — the dominant source of avoidable re-renders. Cheap to run, very high signal.",
+    "react-hooks": "Carries exhaustive-deps + rules-of-hooks. exhaustive-deps in particular surfaces stale-closure bugs that profile traces only show as 'phantom re-renders'.",
+    "react-native": "Provides no-inline-styles, no-unused-styles, no-raw-text. Inline styles defeat StyleSheet caching; on RN this is a real per-frame cost.",
+    "madge": "Detects circular imports — these blow up bundle size and break tree-shaking even when the runtime still works.",
+    "depcheck": "Finds dependencies declared in package.json but never imported. Direct bundle savings on Hermes builds.",
+    "knip": "Stronger sibling of depcheck — also reports unused exports / files. Run with --no-exit-code so CI does not fail the audit on findings; the audit itself is the consumer.",
+    "npm-check-updates": "JSON output is folded into facts.json so the report can flag majorly-out-of-date perf-critical deps (RN, Expo, Reanimated, Skia, etc.).",
+    "source-map-explorer": "Bundle composition. Pipeline runs `expo export` first, then source-map-explorer on the resulting .js + .js.map to attribute bytes per module.",
+    "ajv": "Used by the synthesize step to validate LLM-emitted prose_fills.json against the slot schema before it ever hits the renderer. JSON-schema in Node has multiple options; ajv is the de-facto standard."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "envcore_gateway": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://envcore.int-worker.emergentagent.com/api/v1/env/gateway",
+        "--allow-http"
+      ]
+    }
+  }
+}

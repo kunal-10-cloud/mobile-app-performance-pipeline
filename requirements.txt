@@ -1,0 +1,30 @@
+# mobile-perf-audit — Python dependencies
+#
+# Install with:
+#   python3 -m pip install -r requirements.txt
+#
+# Versions pinned to a known-good range. Loosen the upper bound if the target
+# environment cannot satisfy it; tighten only if a real incompatibility shows up.
+
+# ── Core: AST analysis ───────────────────────────────────────────────────────
+# tree-sitter is the runtime; tree-sitter-typescript ships TSX+TS grammars.
+# Both are required by configs/ast_rules.py and scripts/gather_facts.py.
+tree-sitter>=0.21,<0.24
+tree-sitter-typescript>=0.21,<0.24
+
+# ── Schema validation ────────────────────────────────────────────────────────
+# Used by scripts/aggregate_findings.py to validate per-worker output against
+# schemas/finding.schema.json. Optional at runtime (the script falls back to a
+# warning if it isn't installed), but recommended in CI / first runs to catch
+# worker contract drift.
+jsonschema>=4.21,<5
+
+# ── Stdlib-adjacent helpers used by gather_facts.py ──────────────────────────
+# packaging is used to parse dependency version ranges from package.json so we
+# can report things like "react-native major version" without naive regex.
+packaging>=23,<25
+
+# ── Optional: prettier diagnostics in dev ────────────────────────────────────
+# rich is not imported by any script; uncomment if you want colourful local
+# debug output while iterating on rule authoring.
+# rich>=13,<14

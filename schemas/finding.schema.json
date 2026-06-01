@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "finding.schema.json",
+  "title": "Finding",
+  "description": "A single performance finding emitted by one of the worker stages (static, bundle, reassure, device_android, device_ios, tooling). The verdict and verification_method fields are internal scaffolding consumed by Pass A; they MUST NOT appear in the final report.",
+  "type": "object",
+  "required": ["id", "layer", "category", "severity", "title", "evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable rule ID, dot-separated: <layer>.<rule_name> or <layer>.<namespace>.<rule_name>. Examples: 'static.scrollview_with_long_list', 'bundle.dependency_oversize', 'store.ios.bundle_identifier_placeholder'.",
+      "pattern": "^[a-z_]+(?:\\.[a-z0-9_]+){1,2}$"
+    },
+    "layer": {
+      "description": "Which worker produced this finding. `store` is the pre-publish readiness worker (Stage 4e); `backend` is the FastAPI/Python backend worker (Stage 4f).",
+      "enum": ["static", "bundle", "reassure", "device_android", "device_ios", "tooling", "store", "backend"]
+    },
+    "category": {
+      "description": "User-visible dimension the finding affects. `publishing` items do NOT contribute to the perf score (separate verdict). `backend_perf`, `database`, `algorithms` DO contribute — they are server-side perf categories ported from the web pipeline.",
+      "enum": ["startup", "runtime_jank", "memory", "bundle_size", "code_quality", "config", "tooling_error", "publishing", "backend_perf", "database", "algorithms"]
+    },
+    "severity": {
+      "description": "User-visible severity. Drives ranking and the CRITICAL/HIGH/LOW grouping in the report.",
+      "enum": ["info", "low", "medium", "high", "critical"]
+    },
+    "confidence": {
+      "description": "Worker's confidence that this is a real user-impacting issue at this site. Static heuristics often medium; measured device issues high. PUBLIC field — surfaces as part of report ranking.",
+      "enum": ["low", "medium", "high"]
+    },
+    "title": {
+      "type": "string",
+      "maxLength": 120,
+      "description": "Short human-readable title. Appears as the finding header in the report."
+    },
+    "description": {
+      "type": "string",
+      "description": "Why this matters in user-visible terms. Appears as the 'Impact' paragraph in the report."
+    },
+    "evidence": {
+      "type": "object",
+      "description": "Whatever the worker captured. Schema-free by design — different layers have different evidence shapes.",
+      "additionalProperties": true,
+      "properties": {
+        "file": { "type": "string" },
+        "function": { "type": "string", "description": "Enclosing function name; cited in report prose instead of line numbers." },
+        "line": { "type": "integer", "description": "Stored for evidence.json only; NEVER cited in the report body." },
+        "code_snippet": { "type": "string", "description": "3-line snippet centred on the cited location." },
+        "metric_name": { "type": "string" },
+        "metric_value": { "type": ["number", "string"] },
+        "metric_threshold": { "type": ["number", "string"] },
+        "metric_unit": { "type": "string", "description": "e.g. 'ms', 'fps', 'MB', 'KB'." }
+      }
+    },
+    "suggested_fix": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "summary": { "type": "string", "description": "One-line description of the fix approach." },
+        "diff": { "type": "string", "description": "Unified diff if synthesis was able to generate a concrete code change." }
+      }
+    },
+    "related_finding_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Workers leave empty; synthesis populates when deduping across layers (e.g. a static finding + a device finding pointing at the same root cause)."
+    },
+
+    "verdict": {
+      "description": "INTERNAL — Pass A's classification. REAL hits go in the report; FP and UNCERTAIN do not (per references.md Rule 1.8).",
+      "enum": ["REAL", "FP", "UNCERTAIN"]
+    },
+    "verification_method": {
+      "type": "string",
+      "description": "INTERNAL — one-line explanation of how Pass A arrived at the verdict. Logged in decisions.log. Never surfaces in the report."
+    }
+  }
+}
