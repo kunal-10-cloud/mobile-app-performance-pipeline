@@ -71,7 +71,7 @@ flowchart TD
 | **Artefact scans** | `apk_scan.py`, `ipa_scan.py` (operator-supplied APK / IPA) |
 | **Device runtime** | Android local emulator + Flashlight CLI (default); Flashlight Cloud (alternate); iOS Simulator + `xcrun simctl` on macOS |
 
-The full diagram (with per-script labels) and the data-flow / dual-verdict diagram are in `architecture.md` §2.
+The full diagram (with per-script labels), the data-flow / dual-verdict diagram, and the Maestro flow-generation lifecycle (extract → draft → LLM refine → validate → execute) are in `architecture.md` §2.
 
 ---
 

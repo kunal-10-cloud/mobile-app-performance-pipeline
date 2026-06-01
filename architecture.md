@@ -222,6 +222,78 @@ flowchart LR
 
 **Why disjoint:** a fast app can still be unshippable (placeholder bundle id, missing privacy manifest); a shippable app can still be slow. Conflating the two verdicts has historically let one mask the other. Keeping them disjoint forces the report to answer both questions independently — the perf score sits in the executive summary, the publishing verdict sits in its own panel, and neither contaminates the other.
 
+### Maestro flow lifecycle (device runtime)
+
+Device measurement needs a representative user journey to measure under. The pipeline generates that journey deterministically from the application's source code, then refines it with an LLM, then validates it on an emulator before measurement. The structure prevents two failure modes: hand-written flows go stale as the app evolves, and LLM-generated flows hallucinate selectors that don't exist in the UI.
+
+```mermaid
+flowchart TD
+    Start([Device stage triggered])
+
+    subgraph extract["1. EXTRACT"]
+        E1[extract_screen_map.py]
+        E2[screen_map.json]
+        E1 --> E2
+    end
+
+    subgraph draft["2. DRAFT"]
+        D1[generate_draft_flow.py]
+        D2[draft.yaml + intent]
+        D1 --> D2
+    end
+
+    subgraph refine["3. LLM REFINE"]
+        R1[--prepare]
+        R2{LLM fills intent JSON}
+        R3[--render]
+        R1 --> R2 --> R3
+    end
+
+    subgraph validate["4. VALIDATE"]
+        V1[validate_flow.sh]
+        V2[Maestro dry-run]
+        V3{All steps pass?}
+        V1 --> V2 --> V3
+    end
+
+    subgraph repair["5. LLM REPAIR"]
+        P1[repair_flow_with_llm.py]
+        P2[one attempt only]
+        P1 --> P2
+    end
+
+    subgraph execute["6. EXECUTE"]
+        X1[Android<br/>Flashlight + Maestro]
+        X2[iOS<br/>simctl + Maestro]
+    end
+
+    Start --> E1
+    E2 --> D1
+    D2 --> R1
+    R3 --> V1
+    V3 -- "PARTIAL or FAIL" --> P1
+    V3 -- "ALL PASS" --> X1
+    V3 -- "ALL PASS" --> X2
+    P2 --> X1
+    P2 --> X2
+```
+
+**Per-stage notes:**
+
+1. **Extract** — `extract_screen_map.py` walks `workspace/app/**` with tree-sitter and produces `flows/screen_map.json`. Captures: navigation type (Expo Router tabs, React Navigation stack, etc.), per-screen tab labels, authentication entrypoints (login screen path + form-field labels + submit button), scrollable screens, and bundle identifiers.
+
+2. **Draft** — `generate_draft_flow.py` builds a deterministic baseline flow that covers each detected tab, lightly scrolls each scrollable screen, and (when an auth screen was detected) types valid-shape credentials and submits. The output is two files: `draft.yaml` (a runnable Maestro flow) and `draft_intent.json` (the structured intent the YAML was rendered from). The intent file is what later stages refine — **the LLM never writes YAML directly**; it edits a JSON document matching `schemas/flow_intent.schema.json`, and a deterministic Python renderer translates intent into YAML. This prevents invented selectors and indentation drift.
+
+3. **LLM refine** (optional) — `refine_flow_with_llm.py --prepare` writes `flows/refine_inputs.json` (the screen map + the draft intent + the app's `app.json`). The orchestrator's LLM reads this plus `prompts/refine_flow.md` and writes `flows/refined_intent.json`. `refine_flow_with_llm.py --render` validates the intent against the schema and renders `flows/main.yaml`. If the LLM hand-off is skipped (CI without an LLM in the loop), `main.yaml` falls back to the draft so Maestro always has something to run.
+
+4. **Validate** — `validate_flow.sh` runs the flow on the local emulator in dry-run mode (`maestro test --debug-output`), capturing UI hierarchy dumps per step. Each step gets a status: `PASS`, `PARTIAL` (some selectors matched, some didn't), or `FAIL`. The orchestrator writes `flows/validation.json` summarising step-by-step outcomes. Cloud runner skips validation — Flashlight Cloud accepts `optional: true` on every step so a mis-guessed selector degrades to partial coverage rather than aborting.
+
+5. **LLM repair** (only if validation reported failures) — `repair_flow_with_llm.py --prepare` writes `flows/repair_inputs.json` (the failed flow + the captured UI dumps). The LLM rewrites the intent JSON; `--render` produces the corrected `main.yaml`. **One repair attempt only** — if validation fails again, the orchestrator accepts partial coverage rather than looping, and a `tooling.flow_partial_coverage` finding documents the gap. The operator can drop a hand-written `.audit/maestro-flow.yaml` for the next run.
+
+6. **Execute** — the validated `main.yaml` runs under measurement: `run_android_perf.sh` invokes `flashlight test --testCommand "maestro test main.yaml"` on the local Android emulator; `run_ios_perf.sh` boots the iOS Simulator, installs the IPA, and runs the same flow via `maestro --device <udid> test main.yaml` with per-iteration RSS sampling around each Maestro pass. Both produce a `perf_result.json` matching `schemas/perf_result.schema.json`.
+
+The flow lifecycle is the only part of the pipeline that depends on a running emulator. All other stages run against source / artefacts and complete in seconds; stages 1–5 of the flow lifecycle add 60–120 s; stage 6 (measurement) takes the bulk of the device-runtime wall time.
+
 ---
 
 ## 3. Directory layout
