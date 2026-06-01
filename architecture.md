@@ -40,96 +40,113 @@ The full pipeline runs as a linear backbone of initialisation steps, a fan-out i
 
 ```mermaid
 flowchart TD
-    Start([Operator invokes audit<br/>with pod ID])
+    Start([Audit triggered])
 
     %% ── Initialisation ──────────────────────────────────────────────────
-    subgraph init["INITIALISATION (operator host)"]
+    subgraph init["INITIALISATION"]
         direction TB
-        S0a[Step 0a — probe MCP gateway<br/>mcp__e1__search_tools]
-        S0b[Step 0b — wake_pod.py<br/>+ reachability probe]
-        S1[Step 1 — init_audit.sh<br/>creates .audit-runs/AUDIT_ID/]
+        S0a[Probe MCP]
+        S0b[wake_pod.py]
+        S1[init_audit.sh]
         S0a --> S0b --> S1
     end
 
     Start --> S0a
 
     %% ── Ingest + facts ──────────────────────────────────────────────────
-    subgraph ingest["SOURCE INGEST + FACTS"]
+    subgraph ingest["INGEST + FACTS"]
         direction TB
-        S2[Step 2 — ingest_pod.py<br/>manifest + validator;<br/>LLM fetches via MCP]
-        S3[Step 3 — bootstrap_workspace.sh<br/>pm install + expo-doctor]
-        S4a[Step 4a — gather_facts.py<br/>audit_facts.json]
+        S2[ingest_pod.py]
+        S3[bootstrap_workspace.sh]
+        S4a[gather_facts.py]
         S2 --> S3 --> S4a
     end
 
     S1 --> S2
 
     %% ── Step 4 parallel workers grouped by execution tier ────────────────
-    subgraph agent_workers["AGENT-SIDE WORKERS — read workspace/, no node_modules"]
+    subgraph agent_workers["AGENT-SIDE WORKERS"]
         direction LR
-        W1[4b.1 static_scan.py<br/>tree-sitter + ESLint]
-        W2[4b.2 config_scan.py<br/>Hermes / New Arch]
-        W3[4b.3 store_readiness_scan.py<br/>Apple + Google + cross-cutting]
-        W4[4b.4 backend_scan.py<br/>FastAPI / DB / algorithms]
+        W1[static_scan.py]
+        W2[config_scan.py]
+        W3[store_readiness_scan.py]
+        W4[backend_scan.py]
     end
 
-    subgraph onpod_workers["ON-POD WORKERS — driven by LLM via MCP execute_bash"]
+    subgraph onpod_workers["ON-POD WORKERS"]
         direction LR
-        W5[4b.5 bundle composition<br/>expo export + source-map-explorer<br/>then bundle_scan.py agent-side]
-        W6[4b.5 dependency hygiene<br/>depcheck / madge / npm-check-updates]
-        W7[4b.6 run_reassure.sh<br/>Reassure under jest-expo]
+        W5[bundle_scan.py]
+        W6[dep hygiene]
+        W7[run_reassure.sh]
     end
 
-    subgraph artefacts["OPERATOR-PROVIDED ARTEFACT SCANS"]
+    subgraph artefacts["ARTEFACT SCANS"]
         direction LR
-        W8[4b.7 apk_scan.py<br/>shipped JS bundle + native libs<br/>+ architectures from APK]
-        W9[4b.8 ipa_scan.py<br/>Info.plist + frameworks<br/>+ PrivacyInfo.xcprivacy from IPA]
+        W8[apk_scan.py]
+        W9[ipa_scan.py]
     end
 
-    subgraph device["DEVICE RUNTIME — separate runner"]
+    subgraph device["DEVICE RUNTIME"]
         direction TB
-        W10[4b.9 device_perf.sh<br/>--runner local DEFAULT<br/>--runner cloud ALTERNATE]
-        DA[Android<br/>local emulator + Flashlight CLI<br/>OR Flashlight Cloud]
-        DI[iOS macOS only<br/>xcrun simctl + Maestro<br/>FPS omitted by design]
+        W10[device_perf.sh]
+        DA[Android<br/>emulator + Flashlight]
+        DI[iOS Simulator<br/>xcrun simctl]
         W10 --> DA
         W10 --> DI
     end
 
-    S4a --> W1 & W2 & W3 & W4
-    S4a --> W5 & W6 & W7
-    S4a --> W8 & W9
+    S4a --> W1
+    S4a --> W2
+    S4a --> W3
+    S4a --> W4
+    S4a --> W5
+    S4a --> W6
+    S4a --> W7
+    S4a --> W8
+    S4a --> W9
     S4a --> W10
 
     %% ── Convergence: aggregate, verify, synthesise, render ───────────────
-    subgraph synth["AGGREGATION → VERIFICATION → SYNTHESIS → RENDER"]
+    subgraph synth["CONVERGE"]
         direction TB
-        S5[Step 5 — aggregate_findings.py<br/>concatenate findings/*.json<br/>schema-validate]
-        S6a[Step 6a — pass_a_verify.py<br/>verdict per finding<br/>→ evidence.json + decisions.log]
-        S6b[Step 6b — synthesize.py<br/>dedup + rank + score<br/>+ slot map]
-        LLM{LLM Pass C<br/>prompts/synthesize.md<br/>fills prose slots only}
-        S7[Step 7 — render_report.py<br/>report.md + report.json]
+        S5[aggregate_findings.py]
+        S6a[pass_a_verify.py]
+        S6b[synthesize.py]
+        LLM{LLM Pass C}
+        S7[render_report.py]
         S5 --> S6a --> S6b --> LLM --> S7
     end
 
-    W1 & W2 & W3 & W4 --> S5
-    W5 & W6 & W7 --> S5
-    W8 & W9 --> S5
-    DA & DI --> S5
+    W1 --> S5
+    W2 --> S5
+    W3 --> S5
+    W4 --> S5
+    W5 --> S5
+    W6 --> S5
+    W7 --> S5
+    W8 --> S5
+    W9 --> S5
+    DA --> S5
+    DI --> S5
 
     %% ── Outputs ──────────────────────────────────────────────────────────
-    Out1[/report.md<br/>severity-ranked report/]
-    Out2[/report.json<br/>structured deliverable/]
-    Out3[/evidence.json + decisions.log<br/>verification ledger/]
+    Out1[/report.md/]
+    Out2[/report.json/]
+    Out3[/evidence.json/]
 
     S7 --> Out1
     S7 --> Out2
     S6a -.-> Out3
-
-    classDef startNode fill:#1f2937,stroke:#9ca3af,color:#f9fafb
-    classDef outNode fill:#065f46,stroke:#10b981,color:#ecfdf5
-    class Start startNode
-    class Out1,Out2,Out3 outNode
 ```
+
+**Notes on the diagram:**
+- **Initialisation** (`S0a → S0b → S1`): probe the MCP gateway, wake the pod if asleep, create `.audit-runs/AUDIT_ID/`.
+- **Ingest + facts** (`S2 → S3 → S4a`): the LLM fetches source via MCP (`ingest_pod.py` owns the allowlist + validates); `bootstrap_workspace.sh` runs the project's `pm install` + `expo-doctor`; `gather_facts.py` writes `audit_facts.json`.
+- **Agent-side workers** read `workspace/` only — no `node_modules`, no MCP calls.
+- **On-pod workers** are driven by the LLM via the MCP `execute_bash` tool because they need the project's installed `node_modules`. `bundle_scan.py` consumes the `source-map-explorer` JSON the pod produces; the dep-hygiene group is `depcheck` + `madge` + `npm-check-updates`.
+- **Artefact scans** run against operator-supplied APK / IPA binaries; skip cleanly if absent.
+- **Device runtime** runs on a separate runner. Android defaults to a local emulator + Flashlight CLI; `--runner cloud` switches to Flashlight Cloud. iOS uses `xcrun simctl` + Maestro on macOS hosts only.
+- **Converge** (`S5 → S6a → S6b → LLM Pass C → S7`): aggregate per-worker findings, stamp verdicts (REAL / FP / UNCERTAIN), dedup + rank + score, fill prose slots, render `report.md` + `report.json`. The dashed arrow from `pass_a_verify.py` to `evidence.json` marks where the verification ledger is written.
 
 ### Data-flow + dual-verdict model
 
@@ -138,24 +155,35 @@ Findings flow through a single ledger (`evidence.json`) but produce **two indepe
 ```mermaid
 flowchart LR
     %% Sources
-    F1[findings/static.json]
-    F2[findings/config.json]
-    F3[findings/bundle.json]
-    F4[findings/dephygiene.json]
-    F5[findings/apk.json]
-    F6[findings/ipa.json]
-    F7[findings/reassure.json]
-    F8[findings/android_perf.json<br/>findings/ios_perf.json]
-    F9[findings/store.json]
-    F10[findings/backend.json]
+    F1[static.json]
+    F2[config.json]
+    F3[bundle.json]
+    F4[dephygiene.json]
+    F5[apk.json]
+    F6[ipa.json]
+    F7[reassure.json]
+    F8[android_perf.json]
+    F8b[ios_perf.json]
+    F9[store.json]
+    F10[backend.json]
 
     %% Convergence
-    AGG[aggregate_findings.py]
-    PA[pass_a_verify.py<br/>verdict per finding]
+    AGG[aggregate]
+    PA[pass_a_verify]
     EV[(evidence.json)]
     FACTS[(audit_facts.json)]
 
-    F1 & F2 & F3 & F4 & F5 & F6 & F7 & F8 & F9 & F10 --> AGG
+    F1 --> AGG
+    F2 --> AGG
+    F3 --> AGG
+    F4 --> AGG
+    F5 --> AGG
+    F6 --> AGG
+    F7 --> AGG
+    F8 --> AGG
+    F8b --> AGG
+    F9 --> AGG
+    F10 --> AGG
     AGG --> PA
     PA --> EV
 
@@ -165,18 +193,18 @@ flowchart LR
     FACTS --> SYN
 
     %% Track 1 — perf score
-    subgraph perf_track["PERFORMANCE TRACK"]
+    subgraph perf_track["PERF TRACK"]
         direction TB
-        PERF_LAYERS["layer ∈ static, bundle, reassure,<br/>device_android, device_ios, backend"]
-        SCORE["overall_score = 100 − Σ penalties<br/>per-category breakdown:<br/>startup, runtime_jank, memory,<br/>bundle_size, code_quality,<br/>backend_perf, database, algorithms"]
+        PERF_LAYERS[non-store layers]
+        SCORE[overall_score<br/>0 to 100]
         PERF_LAYERS --> SCORE
     end
 
     %% Track 2 — publishing verdict
     subgraph pub_track["PUBLISHING TRACK"]
         direction TB
-        PUB_LAYER["layer = store<br/>category = publishing"]
-        VERDICT["per-store verdict:<br/>READY / AT_RISK / BLOCKED<br/>Apple AND Google<br/>combined = worse-of-the-two"]
+        PUB_LAYER[store layer only]
+        VERDICT[per-store verdict<br/>READY / AT_RISK / BLOCKED]
         PUB_LAYER --> VERDICT
     end
 
@@ -187,15 +215,12 @@ flowchart LR
     REND[render_report.py]
     SCORE --> REND
     VERDICT --> REND
-    REND --> REPORT[/report.md<br/>perf score in summary,<br/>publishing verdict in its own panel,<br/>independent of each other/]
-
-    classDef ledger fill:#1e3a8a,stroke:#3b82f6,color:#dbeafe
-    classDef outNode fill:#065f46,stroke:#10b981,color:#ecfdf5
-    class EV,FACTS ledger
-    class REPORT outNode
+    REND --> REPORT[/report.md/]
 ```
 
-The architectural reasoning: a fast app can still be unshippable (placeholder bundle ID, missing privacy manifest); a shippable app can still be slow. Conflating the two verdicts into one score has historically led to one masking the other. Keeping them disjoint forces the report to answer both questions independently.
+**Two independent verdict tracks share one evidence ledger.** The performance track consumes findings whose `layer` is one of `static`, `bundle`, `reassure`, `device_android`, `device_ios`, or `backend`, and produces an `overall_score` (0–100) plus per-category breakdowns for `startup`, `runtime_jank`, `memory`, `bundle_size`, `code_quality`, `backend_perf`, `database`, and `algorithms`. The publishing track consumes only `layer == store` findings and produces a `READY / AT_RISK / BLOCKED` verdict per platform (Apple and Google), with the combined verdict being the worse of the two.
+
+**Why disjoint:** a fast app can still be unshippable (placeholder bundle id, missing privacy manifest); a shippable app can still be slow. Conflating the two verdicts has historically let one mask the other. Keeping them disjoint forces the report to answer both questions independently — the perf score sits in the executive summary, the publishing verdict sits in its own panel, and neither contaminates the other.
 
 ---
 

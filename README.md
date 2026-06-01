@@ -22,47 +22,54 @@ Findings carry deterministic counts derived from the verdict ledger — no narra
 
 ```mermaid
 flowchart TD
-    Start([Operator invokes audit<br/>with pod ID])
+    Start([Audit triggered])
 
-    subgraph init["Initialisation (operator host)"]
-        I1[Wake pod + probe MCP]
-        I2[Create .audit-runs/AUDIT_ID/]
-        I3[Ingest source via MCP]
-        I4[Install deps + gather facts]
+    subgraph init["Initialise"]
+        I1[Wake pod]
+        I2[Probe MCP]
+        I3[Ingest source]
+        I4[Gather facts]
         I1 --> I2 --> I3 --> I4
     end
 
     Start --> I1
 
-    subgraph workers["Step 4 — workers run in parallel"]
+    subgraph workers["Step 4 — parallel workers"]
         direction LR
-        A[Agent-side<br/>static + config<br/>store readiness<br/>backend]
-        B[On-pod via MCP<br/>bundle composition<br/>dependency hygiene<br/>Reassure]
-        C[Operator artefacts<br/>APK scan<br/>IPA scan]
-        D[Device runtime<br/>Android local emulator + Flashlight<br/>iOS Simulator on macOS]
+        A[Agent-side]
+        B[On-pod]
+        C[Artefacts]
+        D[Device runtime]
     end
 
-    I4 --> A & B & C & D
+    I4 --> A
+    I4 --> B
+    I4 --> C
+    I4 --> D
 
-    subgraph finish["Convergence"]
-        direction TB
-        F1[aggregate findings]
-        F2[verify per finding<br/>→ evidence.json]
-        F3[dedup + rank + score]
-        F4[LLM fills prose slots]
-        F5[render report.md + report.json]
+    subgraph finish["Converge"]
+        F1[Aggregate]
+        F2[Pass A verify]
+        F3[Synthesise]
+        F4[LLM prose]
+        F5[Render]
         F1 --> F2 --> F3 --> F4 --> F5
     end
 
-    A & B & C & D --> F1
+    A --> F1
+    B --> F1
+    C --> F1
+    D --> F1
 
-    F5 --> Out([report.md<br/>perf score + publishing verdict<br/>severity-ranked findings])
-
-    classDef startNode fill:#1f2937,stroke:#9ca3af,color:#f9fafb
-    classDef outNode fill:#065f46,stroke:#10b981,color:#ecfdf5
-    class Start startNode
-    class Out outNode
+    F5 --> Out([report.md])
 ```
+
+| Tier | What runs there |
+|---|---|
+| **Agent-side** | `static_scan.py`, `config_scan.py`, `store_readiness_scan.py`, `backend_scan.py` |
+| **On-pod** (via MCP) | `bundle_scan.py` (via `expo export` + `source-map-explorer`); `depcheck` / `madge` / `npm-check-updates`; `run_reassure.sh` |
+| **Artefact scans** | `apk_scan.py`, `ipa_scan.py` (operator-supplied APK / IPA) |
+| **Device runtime** | Android local emulator + Flashlight CLI (default); Flashlight Cloud (alternate); iOS Simulator + `xcrun simctl` on macOS |
 
 The full diagram (with per-script labels) and the data-flow / dual-verdict diagram are in `architecture.md` §2.
 
