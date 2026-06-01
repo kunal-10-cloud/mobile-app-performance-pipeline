@@ -186,6 +186,3 @@ The pipeline encodes a small number of architectural decisions; see `architectur
 
 ---
 
-## License
-
-See LICENSE.
