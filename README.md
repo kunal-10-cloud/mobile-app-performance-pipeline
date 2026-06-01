@@ -91,38 +91,46 @@ The full diagram (with per-script labels) and the data-flow / dual-verdict diagr
 ## Repository layout
 
 ```
-SKILL.md               Orchestration spec (load order, step sequence, mandates)
-RUNBOOK.md             Operator guide (environment setup, end-to-end invocation)
-architecture.md        Design rationale, module map, data contracts
-TESTING.md             Regression-test instructions for pipeline development
-references.md          Per-rule reference: detection logic, verification protocol,
-                         common FP shapes, report framing, forbidden phrasings
-references/
-  ranking_heuristics.md  Severity × confidence × coverage weights used by synthesise
-prompts/
-  synthesize.md          LLM prompt — slot-fill prose only
-  refine_flow.md         LLM prompt — Maestro flow refinement
-  repair_flow.md         LLM prompt — Maestro flow repair on validation failure
-schemas/
-  finding.schema.json    Per-finding contract
-  evidence.schema.json   Pass A output contract
-  facts.schema.json      Pinned facts contract
-  perf_result.schema.json   Device-runtime output contract
-  screen_map.schema.json    Screen inventory contract (Stage 4d)
-  flow_intent.schema.json   Structured Maestro flow intent (LLM-fillable)
-configs/
-  ast_rules.py           Frontend tree-sitter AST rules
-  backend_rules.py       FastAPI Python rules (regex + ast)
-  store_rules.py         Apple + Google + cross-cutting publishing rules
-  sdk_disclosure_matrix.py   Per-SDK Apple Nutrition Label + Play Data Safety table
-  eslint.perf.config.js  ESLint perf ruleset
-  reassure-test-template.tsx  Template the Reassure stage instantiates per screen
-  android-emulator.json  AVD spec for the local-runner Android emulator
-scripts/                 One file per pipeline stage (Python or bash)
-test-fixture/            Fixed-input Expo project + backend fixture for regression tests
-.mcp.json                MCP gateway configuration
-requirements.txt         Python dependencies
-package.json             Node dependencies (ESLint, Reassure, jest-expo)
+mobile-perf-audit/
+├── README.md                       # This file
+├── SKILL.md                        # Orchestration spec (load order, step sequence, mandates)
+├── RUNBOOK.md                      # Operator guide (environment setup, end-to-end invocation)
+├── architecture.md                 # Design rationale, module map, data contracts
+├── TESTING.md                      # Regression-test instructions for pipeline development
+├── references.md                   # Per-rule reference: detection, verification, FP shapes, framing
+│
+├── references/
+│   └── ranking_heuristics.md       # Severity × confidence × coverage weights used by synthesise
+│
+├── prompts/
+│   ├── synthesize.md               # LLM prompt — slot-fill prose only
+│   ├── refine_flow.md              # LLM prompt — Maestro flow refinement
+│   └── repair_flow.md              # LLM prompt — Maestro flow repair on validation failure
+│
+├── schemas/
+│   ├── finding.schema.json         # Per-finding contract
+│   ├── evidence.schema.json        # Pass A output contract
+│   ├── facts.schema.json           # Pinned facts contract
+│   ├── perf_result.schema.json     # Device-runtime output contract
+│   ├── screen_map.schema.json      # Screen inventory contract (Stage 4d)
+│   └── flow_intent.schema.json     # Structured Maestro flow intent (LLM-fillable)
+│
+├── configs/
+│   ├── ast_rules.py                # Frontend tree-sitter AST rules
+│   ├── backend_rules.py            # FastAPI Python rules (regex + ast)
+│   ├── store_rules.py              # Apple + Google + cross-cutting publishing rules
+│   ├── sdk_disclosure_matrix.py    # Per-SDK Apple Nutrition Label + Play Data Safety table
+│   ├── eslint.perf.config.js       # ESLint perf ruleset
+│   ├── reassure-test-template.tsx  # Template the Reassure stage instantiates per screen
+│   └── android-emulator.json       # AVD spec for the local-runner Android emulator
+│
+├── scripts/                        # One file per pipeline stage (Python or bash)
+├── test-fixture/                   # Fixed-input Expo + backend fixture for regression tests
+│
+├── .mcp.json                       # MCP gateway configuration
+├── requirements.txt                # Python dependencies
+├── package.json                    # Node dependencies (ESLint, madge, depcheck, etc.)
+└── package-lock.json               # Pinned Node dep tree for reproducible installs
 ```
 
 ---
